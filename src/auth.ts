@@ -12,6 +12,7 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
       authorization: {
         params: { scope: "identify" }, // no email scope
       },
+      checks: ["state"],
       profile(profile) {
         const avatarUrl = profile.avatar
           ? `https://cdn.discordapp.com/avatars/${profile.id}/${profile.avatar}.png?size=128`
