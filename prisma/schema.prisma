@@ -1,0 +1,114 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+// ─── Auth.js required models ───────────────────────────────────────────────
+
+model Account {
+  id                String  @id @default(cuid())
+  userId            String
+  type              String
+  provider          String
+  providerAccountId String
+  refresh_token     String?
+  access_token      String?
+  expires_at        Int?
+  token_type        String?
+  scope             String?
+  id_token          String?
+  session_state     String?
+  user              User    @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([provider, providerAccountId])
+}
+
+model Session {
+  id           String   @id @default(cuid())
+  sessionToken String   @unique
+  userId       String
+  expires      DateTime
+  user         User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+}
+
+model VerificationToken {
+  identifier String
+  token      String   @unique
+  expires    DateTime
+
+  @@unique([identifier, token])
+}
+
+// ─── App models ────────────────────────────────────────────────────────────
+
+model User {
+  id               String       @id @default(cuid())
+  name             String?
+  email            String?      @unique
+  emailVerified    DateTime?
+  image            String?
+  discordId        String?      @unique
+  totalPoints      Int          @default(0)
+  groupStagePoints Int          @default(0)
+  playoffPoints    Int          @default(0)
+  statsPoints      Int          @default(0)
+  predictions      Prediction[]
+  accounts         Account[]
+  sessions         Session[]
+}
+
+enum Category {
+  GROUP_STAGE
+  PLAYOFFS
+  STATS
+}
+
+// Admin-managed pool of reusable answer choices (e.g. "Teams", "Players")
+model AnswerType {
+  id        String       @id @default(cuid())
+  name      String       @unique
+  items     AnswerItem[]
+  questions Question[]
+}
+
+// Individual items within a pool (e.g. "Team Liquid", "Faker")
+model AnswerItem {
+  id                  String       @id @default(cuid())
+  name                String
+  answerTypeId        String
+  answerType          AnswerType   @relation(fields: [answerTypeId], references: [id])
+  predictions         Prediction[]
+  correctForQuestions Question[]   @relation("CorrectAnswers")
+}
+
+model Question {
+  id             String       @id @default(cuid())
+  text           String
+  category       Category
+  answerTypeId   String
+  answerType     AnswerType   @relation(fields: [answerTypeId], references: [id])
+  deadline       DateTime
+  isLocked       Boolean      @default(false)
+  pointValue     Int          @default(1)
+  correctAnswers AnswerItem[] @relation("CorrectAnswers")
+  predictions    Prediction[]
+  createdAt      DateTime     @default(now())
+}
+
+model Prediction {
+  id           String     @id @default(cuid())
+  userId       String
+  questionId   String
+  answerItemId String
+  isCorrect    Boolean?
+  user         User       @relation(fields: [userId], references: [id])
+  question     Question   @relation(fields: [questionId], references: [id])
+  answerItem   AnswerItem @relation(fields: [answerItemId], references: [id])
+  updatedAt    DateTime   @updatedAt
+
+  @@unique([userId, questionId])
+}
