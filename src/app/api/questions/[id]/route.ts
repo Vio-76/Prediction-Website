@@ -2,7 +2,6 @@ import { auth } from "@/auth";
 import { prisma } from "@/lib/prisma";
 import { isAdmin } from "@/lib/admin";
 import { scoreQuestion } from "@/lib/scoring";
-import { Category } from "@prisma/client";
 
 export async function PATCH(
   request: Request,
@@ -16,20 +15,11 @@ export async function PATCH(
   const { id } = await params;
   const body = await request.json();
 
-  // Build update payload from provided fields
   const data: Record<string, unknown> = {};
   if (body.text !== undefined) data.text = body.text.trim();
-  if (body.category !== undefined) {
-    if (!Object.values(Category).includes(body.category)) {
-      return Response.json({ error: "Invalid category" }, { status: 400 });
-    }
-    data.category = body.category;
-  }
-  if (body.deadline !== undefined) data.deadline = new Date(body.deadline);
   if (body.pointValue !== undefined) data.pointValue = Number(body.pointValue);
-  if (body.isLocked !== undefined) data.isLocked = Boolean(body.isLocked);
+  if (body.answerTypeId !== undefined) data.answerTypeId = body.answerTypeId;
 
-  // Handle setting correct answers
   if (body.correctAnswerItemIds !== undefined) {
     data.correctAnswers = {
       set: (body.correctAnswerItemIds as string[]).map((id: string) => ({ id })),
@@ -46,10 +36,7 @@ export async function PATCH(
   });
 
   // Re-score whenever correct answers or point value changes
-  if (
-    body.correctAnswerItemIds !== undefined ||
-    body.pointValue !== undefined
-  ) {
+  if (body.correctAnswerItemIds !== undefined || body.pointValue !== undefined) {
     await scoreQuestion(id);
   }
 

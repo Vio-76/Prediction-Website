@@ -25,23 +25,17 @@ export async function POST(request: Request) {
     return Response.json({ error: "Forbidden" }, { status: 403 });
   }
 
-  const { text, category, answerTypeId, deadline, pointValue } =
-    await request.json();
+  const { text, answerTypeId, pointValue } = await request.json();
 
-  if (!text?.trim() || !category || !answerTypeId || !deadline) {
+  if (!text?.trim() || !answerTypeId) {
     return Response.json({ error: "Missing required fields" }, { status: 400 });
-  }
-
-  if (!Object.values(Category).includes(category)) {
-    return Response.json({ error: "Invalid category" }, { status: 400 });
   }
 
   const question = await prisma.question.create({
     data: {
       text: text.trim(),
-      category,
+      category: "STATS",
       answerTypeId,
-      deadline: new Date(deadline),
       pointValue: Number(pointValue) || 1,
     },
     include: {

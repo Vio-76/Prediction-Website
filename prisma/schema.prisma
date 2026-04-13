@@ -46,19 +46,21 @@ model VerificationToken {
 // ─── App models ────────────────────────────────────────────────────────────
 
 model User {
-  id               String       @id @default(cuid())
-  name             String?
-  email            String?      @unique
-  emailVerified    DateTime?
-  image            String?
-  discordId        String?      @unique
-  totalPoints      Int          @default(0)
-  groupStagePoints Int          @default(0)
-  playoffPoints    Int          @default(0)
-  statsPoints      Int          @default(0)
-  predictions      Prediction[]
-  accounts         Account[]
-  sessions         Session[]
+  id                 String              @id @default(cuid())
+  name               String?
+  email              String?             @unique
+  emailVerified      DateTime?
+  image              String?
+  discordId          String?             @unique
+  totalPoints        Int                 @default(0)
+  groupStagePoints   Int                 @default(0)
+  playoffPoints      Int                 @default(0)
+  statsPoints        Int                 @default(0)
+  predictions        Prediction[]
+  groupPredictions   GroupPrediction[]
+  bracketPredictions BracketPrediction[]
+  accounts           Account[]
+  sessions           Session[]
 }
 
 enum Category {
@@ -67,7 +69,15 @@ enum Category {
   STATS
 }
 
-// Admin-managed pool of reusable answer choices (e.g. "Teams", "Players")
+// One row per category — stores the shared deadline and lock state
+model CategorySettings {
+  category  Category  @id
+  deadline  DateTime?
+  isLocked  Boolean   @default(false)
+}
+
+// ─── Stats (multiple choice questions) ─────────────────────────────────────
+
 model AnswerType {
   id        String       @id @default(cuid())
   name      String       @unique
@@ -75,14 +85,18 @@ model AnswerType {
   questions Question[]
 }
 
-// Individual items within a pool (e.g. "Team Liquid", "Faker")
 model AnswerItem {
-  id                  String       @id @default(cuid())
+  id                  String              @id @default(cuid())
   name                String
   answerTypeId        String
-  answerType          AnswerType   @relation(fields: [answerTypeId], references: [id])
+  answerType          AnswerType          @relation(fields: [answerTypeId], references: [id])
   predictions         Prediction[]
-  correctForQuestions Question[]   @relation("CorrectAnswers")
+  correctForQuestions Question[]          @relation("CorrectAnswers")
+  groupTeams          GroupTeam[]
+  matchTeam1          BracketMatch[]      @relation("MatchTeam1")
+  matchTeam2          BracketMatch[]      @relation("MatchTeam2")
+  matchWinner         BracketMatch[]      @relation("MatchWinner")
+  bracketPredictions  BracketPrediction[] @relation("BracketPredWinner")
 }
 
 model Question {
@@ -91,8 +105,6 @@ model Question {
   category       Category
   answerTypeId   String
   answerType     AnswerType   @relation(fields: [answerTypeId], references: [id])
-  deadline       DateTime
-  isLocked       Boolean      @default(false)
   pointValue     Int          @default(1)
   correctAnswers AnswerItem[] @relation("CorrectAnswers")
   predictions    Prediction[]
@@ -111,4 +123,118 @@ model Prediction {
   updatedAt    DateTime   @updatedAt
 
   @@unique([userId, questionId])
+}
+
+// ─── Group Stage ─────────────────────────────────────────────────────────────
+
+model TournamentGroup {
+  id          String            @id @default(cuid())
+  name        String
+  pointValue  Int               @default(1)
+  teams       GroupTeam[]
+  predictions GroupPrediction[]
+  createdAt   DateTime          @default(now())
+}
+
+model GroupTeam {
+  id            String            @id @default(cuid())
+  groupId       String
+  answerItemId  String
+  group         TournamentGroup   @relation(fields: [groupId], references: [id], onDelete: Cascade)
+  answerItem    AnswerItem        @relation(fields: [answerItemId], references: [id])
+  finalPosition Int?
+  predictions   GroupPrediction[]
+
+  @@unique([groupId, answerItemId])
+}
+
+model GroupPrediction {
+  id                String          @id @default(cuid())
+  userId            String
+  groupId           String
+  teamId            String
+  predictedPosition Int
+  isCorrect         Boolean?
+  user              User            @relation(fields: [userId], references: [id])
+  group             TournamentGroup @relation(fields: [groupId], references: [id])
+  team              GroupTeam       @relation(fields: [teamId], references: [id])
+  updatedAt         DateTime        @updatedAt
+
+  @@unique([userId, groupId, teamId])
+}
+
+// ─── Playoffs Bracket ────────────────────────────────────────────────────────
+
+enum BracketFormat {
+  SINGLE_ELIM
+  DOUBLE_ELIM
+}
+
+enum BracketSide {
+  WINNER
+  LOSER
+  GRAND_FINAL
+}
+
+model BracketTournament {
+  id                   String              @id @default(cuid())
+  name                 String
+  format               BracketFormat
+  allowScorePrediction Boolean             @default(false)
+  pointsPerWinner      Int                 @default(1)
+  pointsPerScore       Int                 @default(1)
+  deadline             DateTime?
+  isLocked             Boolean             @default(false)
+  rounds               BracketRound[]
+  predictions          BracketPrediction[]
+  createdAt            DateTime            @default(now())
+}
+
+model BracketRound {
+  id           String            @id @default(cuid())
+  tournamentId String
+  name         String
+  bracketSide  BracketSide
+  order        Int
+  tournament   BracketTournament @relation(fields: [tournamentId], references: [id], onDelete: Cascade)
+  matches      BracketMatch[]
+
+  @@unique([tournamentId, order])
+}
+
+model BracketMatch {
+  id          String              @id @default(cuid())
+  roundId     String
+  matchNumber Int
+  team1Id     String?
+  team2Id     String?
+  winnerId    String?
+  team1Score  Int?
+  team2Score  Int?
+  round       BracketRound        @relation(fields: [roundId], references: [id], onDelete: Cascade)
+  team1       AnswerItem?         @relation("MatchTeam1", fields: [team1Id], references: [id])
+  team2       AnswerItem?         @relation("MatchTeam2", fields: [team2Id], references: [id])
+  winner      AnswerItem?         @relation("MatchWinner", fields: [winnerId], references: [id])
+  predictions BracketPrediction[]
+
+  @@unique([roundId, matchNumber])
+}
+
+model BracketPrediction {
+  id                  String            @id @default(cuid())
+  userId              String
+  tournamentId        String
+  matchId             String
+  predictedWinnerId   String
+  predictedTeam1Score Int?
+  predictedTeam2Score Int?
+  isCorrect           Boolean?
+  isScoreCorrect      Boolean?
+  user                User              @relation(fields: [userId], references: [id])
+  tournament          BracketTournament @relation(fields: [tournamentId], references: [id])
+  match               BracketMatch      @relation(fields: [matchId], references: [id])
+  predictedWinner     AnswerItem        @relation("BracketPredWinner", fields: [predictedWinnerId], references: [id])
+  updatedAt           DateTime          @updatedAt
+
+  @@unique([userId, matchId])
 }

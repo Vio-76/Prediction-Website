@@ -5,7 +5,7 @@ import { isAdmin } from "@/lib/admin";
 const TABS = [
   { href: "/predictions/group-stage", label: "Group Stage" },
   { href: "/predictions/playoffs", label: "Playoffs" },
-  { href: "/predictions/stats", label: "General Stats" },
+  { href: "/predictions/stats", label: "Stats" },
 ];
 
 export default async function PredictionsLayout({

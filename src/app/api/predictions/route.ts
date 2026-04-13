@@ -44,7 +44,12 @@ export async function POST(request: Request) {
       continue;
     }
 
-    const isClosed = question.isLocked || question.deadline < new Date();
+    const categorySettings = await prisma.categorySettings.findUnique({
+      where: { category: question.category },
+    });
+    const isClosed =
+      categorySettings?.isLocked ||
+      (categorySettings?.deadline != null && categorySettings.deadline < new Date());
     if (isClosed) {
       errors.push({ questionId, error: "Submissions closed" });
       continue;

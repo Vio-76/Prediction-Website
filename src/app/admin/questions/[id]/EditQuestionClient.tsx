@@ -2,25 +2,13 @@
 
 import { useState } from "react";
 import { useRouter } from "next/navigation";
-import type { Question, AnswerType, AnswerItem, Category } from "@prisma/client";
+import type { Question, AnswerType, AnswerItem } from "@prisma/client";
 
 type FullQuestion = Question & {
   answerType: AnswerType & { items: AnswerItem[] };
   correctAnswers: AnswerItem[];
 };
 type FullAnswerType = AnswerType & { items: AnswerItem[] };
-
-const CATEGORIES: { value: Category; label: string }[] = [
-  { value: "GROUP_STAGE", label: "Group Stage" },
-  { value: "PLAYOFFS", label: "Playoffs" },
-  { value: "STATS", label: "General Stats" },
-];
-
-function toLocalDatetime(date: Date | string) {
-  const d = new Date(date);
-  const pad = (n: number) => String(n).padStart(2, "0");
-  return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}T${pad(d.getHours())}:${pad(d.getMinutes())}`;
-}
 
 export default function EditQuestionClient({
   question,
@@ -32,11 +20,8 @@ export default function EditQuestionClient({
   const router = useRouter();
   const [form, setForm] = useState({
     text: question.text,
-    category: question.category,
     answerTypeId: question.answerTypeId,
-    deadline: toLocalDatetime(question.deadline),
     pointValue: String(question.pointValue),
-    isLocked: question.isLocked,
   });
   const [correctIds, setCorrectIds] = useState<Set<string>>(
     new Set(question.correctAnswers.map((a) => a.id))
@@ -118,18 +103,6 @@ export default function EditQuestionClient({
 
         <div className="grid grid-cols-2 gap-4">
           <div>
-            <label className="mb-1 block text-sm font-medium text-zinc-300">Category</label>
-            <select
-              value={form.category}
-              onChange={(e) => setForm((f) => ({ ...f, category: e.target.value as Category }))}
-              className="w-full rounded-lg bg-zinc-800 px-3 py-2 text-white focus:outline-none focus:ring-2 focus:ring-indigo-500"
-            >
-              {CATEGORIES.map((c) => (
-                <option key={c.value} value={c.value}>{c.label}</option>
-              ))}
-            </select>
-          </div>
-          <div>
             <label className="mb-1 block text-sm font-medium text-zinc-300">Points</label>
             <input
               type="number"
@@ -140,45 +113,27 @@ export default function EditQuestionClient({
               className="w-full rounded-lg bg-zinc-800 px-3 py-2 text-white focus:outline-none focus:ring-2 focus:ring-indigo-500"
             />
           </div>
+          <div>
+            <label className="mb-1 block text-sm font-medium text-zinc-300">Answer type</label>
+            <select
+              value={form.answerTypeId}
+              onChange={(e) => setForm((f) => ({ ...f, answerTypeId: e.target.value }))}
+              className="w-full rounded-lg bg-zinc-800 px-3 py-2 text-white focus:outline-none focus:ring-2 focus:ring-indigo-500"
+            >
+              {answerTypes.map((t) => (
+                <option key={t.id} value={t.id}>{t.name}</option>
+              ))}
+            </select>
+          </div>
         </div>
 
-        <div>
-          <label className="mb-1 block text-sm font-medium text-zinc-300">Answer type</label>
-          <select
-            value={form.answerTypeId}
-            onChange={(e) => setForm((f) => ({ ...f, answerTypeId: e.target.value }))}
-            className="w-full rounded-lg bg-zinc-800 px-3 py-2 text-white focus:outline-none focus:ring-2 focus:ring-indigo-500"
-          >
-            {answerTypes.map((t) => (
-              <option key={t.id} value={t.id}>{t.name}</option>
-            ))}
-          </select>
-        </div>
-
-        <div>
-          <label className="mb-1 block text-sm font-medium text-zinc-300">Submission deadline</label>
-          <input
-            type="datetime-local"
-            required
-            value={form.deadline}
-            onChange={(e) => setForm((f) => ({ ...f, deadline: e.target.value }))}
-            className="w-full rounded-lg bg-zinc-800 px-3 py-2 text-white focus:outline-none focus:ring-2 focus:ring-indigo-500"
-          />
-        </div>
-
-        <div className="flex items-center gap-3">
-          <button
-            type="button"
-            onClick={() => setForm((f) => ({ ...f, isLocked: !f.isLocked }))}
-            className={`rounded-lg px-4 py-2 text-sm font-medium transition-colors ${
-              form.isLocked
-                ? "bg-red-700 text-white hover:bg-red-600"
-                : "bg-zinc-700 text-zinc-300 hover:bg-zinc-600"
-            }`}
-          >
-            {form.isLocked ? "🔒 Submissions closed (click to reopen)" : "🔓 Submissions open (click to close)"}
-          </button>
-        </div>
+        <p className="text-xs text-zinc-500">
+          Category is <strong className="text-zinc-400">Stats</strong>. Deadline and lock are managed in{" "}
+          <a href="/admin/category-settings" className="underline hover:text-zinc-300">
+            Category Settings
+          </a>
+          .
+        </p>
 
         {/* Correct answers */}
         <div>

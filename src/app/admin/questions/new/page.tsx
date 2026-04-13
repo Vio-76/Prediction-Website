@@ -5,20 +5,12 @@ import { useRouter } from "next/navigation";
 
 type AnswerType = { id: string; name: string };
 
-const CATEGORIES = [
-  { value: "GROUP_STAGE", label: "Group Stage" },
-  { value: "PLAYOFFS", label: "Playoffs" },
-  { value: "STATS", label: "General Stats" },
-];
-
 export default function NewQuestionPage() {
   const router = useRouter();
   const [answerTypes, setAnswerTypes] = useState<AnswerType[]>([]);
   const [form, setForm] = useState({
     text: "",
-    category: "GROUP_STAGE",
     answerTypeId: "",
-    deadline: "",
     pointValue: "1",
   });
   const [error, setError] = useState("");
@@ -43,6 +35,7 @@ export default function NewQuestionPage() {
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           ...form,
+          category: "STATS",
           pointValue: Number(form.pointValue),
         }),
       });
@@ -60,7 +53,7 @@ export default function NewQuestionPage() {
 
   return (
     <div className="max-w-xl">
-      <h1 className="mb-6 text-2xl font-bold">New Question</h1>
+      <h1 className="mb-6 text-2xl font-bold">New Stats Question</h1>
 
       {answerTypes.length === 0 && (
         <div className="mb-4 rounded-lg bg-amber-900/30 border border-amber-700 p-4 text-sm text-amber-300">
@@ -82,28 +75,11 @@ export default function NewQuestionPage() {
             value={form.text}
             onChange={(e) => setForm((f) => ({ ...f, text: e.target.value }))}
             className="w-full rounded-lg bg-zinc-800 px-3 py-2 text-white placeholder-zinc-500 focus:outline-none focus:ring-2 focus:ring-indigo-500"
-            placeholder="e.g. Which team will win the longest game?"
+            placeholder="e.g. Which team will have the most kills overall?"
           />
         </div>
 
         <div className="grid grid-cols-2 gap-4">
-          <div>
-            <label className="mb-1 block text-sm font-medium text-zinc-300">
-              Category
-            </label>
-            <select
-              value={form.category}
-              onChange={(e) => setForm((f) => ({ ...f, category: e.target.value }))}
-              className="w-full rounded-lg bg-zinc-800 px-3 py-2 text-white focus:outline-none focus:ring-2 focus:ring-indigo-500"
-            >
-              {CATEGORIES.map((c) => (
-                <option key={c.value} value={c.value}>
-                  {c.label}
-                </option>
-              ))}
-            </select>
-          </div>
-
           <div>
             <label className="mb-1 block text-sm font-medium text-zinc-300">
               Points
@@ -117,39 +93,33 @@ export default function NewQuestionPage() {
               className="w-full rounded-lg bg-zinc-800 px-3 py-2 text-white focus:outline-none focus:ring-2 focus:ring-indigo-500"
             />
           </div>
+          <div>
+            <label className="mb-1 block text-sm font-medium text-zinc-300">
+              Answer type (the pool of choices)
+            </label>
+            <select
+              value={form.answerTypeId}
+              onChange={(e) => setForm((f) => ({ ...f, answerTypeId: e.target.value }))}
+              className="w-full rounded-lg bg-zinc-800 px-3 py-2 text-white focus:outline-none focus:ring-2 focus:ring-indigo-500"
+              required
+            >
+              <option value="">Select an answer type…</option>
+              {answerTypes.map((t) => (
+                <option key={t.id} value={t.id}>
+                  {t.name}
+                </option>
+              ))}
+            </select>
+          </div>
         </div>
 
-        <div>
-          <label className="mb-1 block text-sm font-medium text-zinc-300">
-            Answer type (the pool of choices)
-          </label>
-          <select
-            value={form.answerTypeId}
-            onChange={(e) => setForm((f) => ({ ...f, answerTypeId: e.target.value }))}
-            className="w-full rounded-lg bg-zinc-800 px-3 py-2 text-white focus:outline-none focus:ring-2 focus:ring-indigo-500"
-            required
-          >
-            <option value="">Select an answer type…</option>
-            {answerTypes.map((t) => (
-              <option key={t.id} value={t.id}>
-                {t.name}
-              </option>
-            ))}
-          </select>
-        </div>
-
-        <div>
-          <label className="mb-1 block text-sm font-medium text-zinc-300">
-            Submission deadline
-          </label>
-          <input
-            type="datetime-local"
-            required
-            value={form.deadline}
-            onChange={(e) => setForm((f) => ({ ...f, deadline: e.target.value }))}
-            className="w-full rounded-lg bg-zinc-800 px-3 py-2 text-white focus:outline-none focus:ring-2 focus:ring-indigo-500"
-          />
-        </div>
+        <p className="text-xs text-zinc-500">
+          Deadline and lock for Stats are managed in{" "}
+          <a href="/admin/category-settings" className="underline hover:text-zinc-300">
+            Category Settings
+          </a>
+          .
+        </p>
 
         {error && <p className="text-sm text-red-400">{error}</p>}
 
