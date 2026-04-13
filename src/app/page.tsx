@@ -24,7 +24,7 @@ export default async function LandingPage() {
               Tournament Predictions
             </h1>
             <p className="text-zinc-400">
-              Make your picks, earn points, climb the leaderboard.
+              Make your picks, earn points, and climb the leaderboard.
             </p>
           </div>
 
