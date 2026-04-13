@@ -51,7 +51,7 @@ export default async function StatsPage() {
         </div>
       ) : null}
 
-      <PredictionsView questions={questions} initialPredictions={predictions} />
+      <PredictionsView questions={questions} initialPredictions={predictions} closed={isClosed ?? false} />
     </div>
   );
 }

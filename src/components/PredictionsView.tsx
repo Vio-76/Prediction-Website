@@ -10,16 +10,14 @@ type FullQuestion = Question & {
 
 type UserPrediction = Prediction & { answerItem: AnswerItem };
 
-function isClosed(q: FullQuestion) {
-  return q.isLocked || new Date(q.deadline) < new Date();
-}
-
 export default function PredictionsView({
   questions,
   initialPredictions,
+  closed,
 }: {
   questions: FullQuestion[];
   initialPredictions: UserPrediction[];
+  closed: boolean;
 }) {
   // Map: questionId → answerItemId
   const [selected, setSelected] = useState<Record<string, string>>(() =>
@@ -75,7 +73,6 @@ export default function PredictionsView({
   return (
     <div className="space-y-6">
       {questions.map((q) => {
-        const closed = isClosed(q);
         const mySelection = selected[q.id];
         const correctIds = new Set(q.correctAnswers.map((a) => a.id));
         const hasResults = q.correctAnswers.length > 0;

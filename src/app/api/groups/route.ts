@@ -22,16 +22,15 @@ export async function POST(request: Request) {
     return Response.json({ error: "Forbidden" }, { status: 403 });
   }
 
-  const { name, deadline, pointValue, teamItemIds } = await request.json() as {
+  const { name, pointValue, teamItemIds } = await request.json() as {
     name: string;
-    deadline: string;
     pointValue: number;
     teamItemIds: string[];
   };
 
-  if (!name?.trim() || !deadline || !Array.isArray(teamItemIds) || teamItemIds.length < 2) {
+  if (!name?.trim() || !Array.isArray(teamItemIds) || teamItemIds.length < 2) {
     return Response.json(
-      { error: "name, deadline and at least 2 team IDs are required" },
+      { error: "name and at least 2 team IDs are required" },
       { status: 400 }
     );
   }
@@ -61,7 +60,6 @@ export async function POST(request: Request) {
   const group = await prisma.tournamentGroup.create({
     data: {
       name: name.trim(),
-      deadline: new Date(deadline),
       pointValue: pointValue ?? 1,
       teams: {
         create: teamItemIds.map((answerItemId) => ({ answerItemId })),

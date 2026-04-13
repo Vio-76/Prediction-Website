@@ -8,7 +8,7 @@ type AnswerType = { id: string; name: string; items: AnswerItem[] };
 
 export default function NewGroupPage() {
   const router = useRouter();
-  const [form, setForm] = useState({ name: "", deadline: "", pointValue: "1" });
+  const [form, setForm] = useState({ name: "", pointValue: "1" });
   const [teamsPool, setTeamsPool] = useState<AnswerItem[] | null>(null);
   const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
   const [saving, setSaving] = useState(false);
@@ -45,7 +45,6 @@ export default function NewGroupPage() {
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           name: form.name,
-          deadline: form.deadline,
           pointValue: Number(form.pointValue),
           teamItemIds: [...selectedIds],
         }),
@@ -103,18 +102,13 @@ export default function NewGroupPage() {
           </div>
         </div>
 
-        <div>
-          <label className="mb-1 block text-sm font-medium text-zinc-300">
-            Submission deadline
-          </label>
-          <input
-            type="datetime-local"
-            required
-            value={form.deadline}
-            onChange={(e) => setForm((f) => ({ ...f, deadline: e.target.value }))}
-            className="w-full rounded-lg bg-zinc-800 px-3 py-2 text-white focus:outline-none focus:ring-2 focus:ring-indigo-500"
-          />
-        </div>
+        <p className="text-xs text-zinc-500">
+          Deadline and lock are managed in{" "}
+          <a href="/admin/category-settings" className="underline hover:text-zinc-300">
+            Category Settings
+          </a>
+          .
+        </p>
 
         <div>
           <label className="mb-2 block text-sm font-medium text-zinc-300">
