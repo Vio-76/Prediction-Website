@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useCallback } from "react";
+import { useState, useCallback, useRef, useEffect } from "react";
 
 type GroupTeam = {
   id: string;
@@ -26,6 +26,20 @@ function isClosed(group: TournamentGroup): boolean {
   return group.isLocked || new Date(group.deadline) < new Date();
 }
 
+function reorderByTeamIds(order: GroupTeam[], fromTeamId: string, toTeamId: string): GroupTeam[] {
+  const fromIndex = order.findIndex((team) => team.id === fromTeamId);
+  const toIndex = order.findIndex((team) => team.id === toTeamId);
+
+  if (fromIndex < 0 || toIndex < 0 || fromIndex === toIndex) {
+    return order;
+  }
+
+  const nextOrder = [...order];
+  const [movedTeam] = nextOrder.splice(fromIndex, 1);
+  nextOrder.splice(toIndex, 0, movedTeam);
+  return nextOrder;
+}
+
 function GroupCard({
   group,
   initialOrder,
@@ -41,6 +55,10 @@ function GroupCard({
   const [saving, setSaving] = useState(false);
   const [saved, setSaved] = useState(false);
   const [error, setError] = useState("");
+  const [draggingTeamId, setDraggingTeamId] = useState<string | null>(null);
+  const [dropTargetTeamId, setDropTargetTeamId] = useState<string | null>(null);
+  const draggingRef = useRef<string | null>(null);
+  const dropTargetRef = useRef<string | null>(null);
 
   const save = useCallback(async (newOrder: GroupTeam[]) => {
     setSaving(true);
@@ -71,13 +89,68 @@ function GroupCard({
     }
   }, [group.id]);
 
-  function move(index: number, direction: -1 | 1) {
-    const newOrder = [...order];
-    const target = index + direction;
-    if (target < 0 || target >= newOrder.length) return;
-    [newOrder[index], newOrder[target]] = [newOrder[target], newOrder[index]];
+  const reorderAndSave = useCallback((fromTeamId: string, toTeamId: string) => {
+    if (closed) return;
+
+    const newOrder = reorderByTeamIds(order, fromTeamId, toTeamId);
+    if (newOrder === order) return;
+
     setOrder(newOrder);
     save(newOrder);
+  }, [closed, order, save]);
+
+  function move(index: number, direction: -1 | 1) {
+    const target = index + direction;
+    if (target < 0 || target >= order.length) return;
+    reorderAndSave(order[index].id, order[target].id);
+  }
+
+  function clearDragState() {
+    draggingRef.current = null;
+    dropTargetRef.current = null;
+    setDraggingTeamId(null);
+    setDropTargetTeamId(null);
+  }
+
+  // Document-level listeners for pointermove/pointerup during drag
+  useEffect(() => {
+    function onPointerMove(event: PointerEvent) {
+      if (!draggingRef.current) return;
+      const el = document.elementFromPoint(event.clientX, event.clientY);
+      const row = el?.closest("[data-team-id]") as HTMLElement | null;
+      const teamId = row?.dataset.teamId;
+      if (teamId) {
+        dropTargetRef.current = teamId;
+        setDropTargetTeamId(teamId);
+      }
+    }
+
+    function onPointerUp() {
+      const fromTeamId = draggingRef.current;
+      const toTeamId = dropTargetRef.current;
+      if (fromTeamId && toTeamId && fromTeamId !== toTeamId) {
+        reorderAndSave(fromTeamId, toTeamId);
+      }
+      clearDragState();
+    }
+
+    document.addEventListener("pointermove", onPointerMove);
+    document.addEventListener("pointerup", onPointerUp);
+    return () => {
+      document.removeEventListener("pointermove", onPointerMove);
+      document.removeEventListener("pointerup", onPointerUp);
+    };
+  }, [reorderAndSave]);
+
+  function handlePointerDown(event: React.PointerEvent<HTMLDivElement>, teamId: string) {
+    if (closed) return;
+    if (event.button !== 0) return;
+    if ((event.target as HTMLElement).closest("button")) return;
+    event.preventDefault();
+    draggingRef.current = teamId;
+    dropTargetRef.current = teamId;
+    setDraggingTeamId(teamId);
+    setDropTargetTeamId(teamId);
   }
 
   // Build a map of teamId → finalPosition for result display
@@ -110,6 +183,12 @@ function GroupCard({
         {!closed && <span className="w-16" />}
       </div>
 
+      {!closed && (
+        <p className="mb-2 text-xs text-zinc-500">
+          Drag and drop teams to reorder. You can also use the arrow buttons.
+        </p>
+      )}
+
       {/* Team rows */}
       <div className="space-y-1.5">
         {order.map((team, idx) => {
@@ -117,16 +196,26 @@ function GroupCard({
           const predictedPos = idx + 1;
           const correct = hasResults && actualPos === predictedPos;
           const wrong = hasResults && actualPos !== null && actualPos !== predictedPos;
+          const isDragging = draggingTeamId === team.id;
+          const isDropTarget = dropTargetTeamId === team.id;
 
           return (
             <div
               key={team.id}
+              data-team-id={team.id}
+              onPointerDown={(event) => handlePointerDown(event, team.id)}
               className={`flex items-center gap-2 rounded-lg px-3 py-2 transition-colors ${
                 correct
                   ? "bg-green-900/40 ring-1 ring-green-600"
                   : wrong
                   ? "bg-red-900/30"
                   : "bg-zinc-700/50"
+              } ${
+                closed ? "" : "cursor-grab active:cursor-grabbing touch-none"
+              } ${
+                isDragging ? "ring-1 ring-zinc-500 opacity-80" : ""
+              } ${
+                isDropTarget && !isDragging ? "ring-1 ring-sky-500" : ""
               }`}
             >
               <span className="w-6 text-center text-sm font-bold text-zinc-400">

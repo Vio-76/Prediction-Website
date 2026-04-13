@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useRef, useEffect } from "react";
 import { useRouter } from "next/navigation";
 
 type GroupTeam = {
@@ -38,6 +38,10 @@ export default function EditGroupClient({ group }: { group: TournamentGroup }) {
   const [error, setError] = useState("");
   const [resultsError, setResultsError] = useState("");
   const [resultsSaved, setResultsSaved] = useState(false);
+  const [draggingTeamId, setDraggingTeamId] = useState<string | null>(null);
+  const [dropTargetTeamId, setDropTargetTeamId] = useState<string | null>(null);
+  const draggingRef = useRef<string | null>(null);
+  const dropTargetRef = useRef<string | null>(null);
 
   function moveResult(index: number, direction: -1 | 1) {
     const target = index + direction;
@@ -46,6 +50,61 @@ export default function EditGroupClient({ group }: { group: TournamentGroup }) {
     [next[index], next[target]] = [next[target], next[index]];
     setResultOrder(next);
     setResultsSaved(false);
+  }
+
+  function clearDragState() {
+    draggingRef.current = null;
+    dropTargetRef.current = null;
+    setDraggingTeamId(null);
+    setDropTargetTeamId(null);
+  }
+
+  useEffect(() => {
+    function onPointerMove(event: PointerEvent) {
+      if (!draggingRef.current) return;
+      const el = document.elementFromPoint(event.clientX, event.clientY);
+      const row = el?.closest("[data-team-id]") as HTMLElement | null;
+      const teamId = row?.dataset.teamId;
+      if (teamId) {
+        dropTargetRef.current = teamId;
+        setDropTargetTeamId(teamId);
+      }
+    }
+
+    function onPointerUp() {
+      const fromId = draggingRef.current;
+      const toId = dropTargetRef.current;
+      if (fromId && toId && fromId !== toId) {
+        setResultOrder((prev) => {
+          const fromIdx = prev.findIndex((t) => t.id === fromId);
+          const toIdx = prev.findIndex((t) => t.id === toId);
+          if (fromIdx < 0 || toIdx < 0) return prev;
+          const next = [...prev];
+          const [moved] = next.splice(fromIdx, 1);
+          next.splice(toIdx, 0, moved);
+          return next;
+        });
+        setResultsSaved(false);
+      }
+      clearDragState();
+    }
+
+    document.addEventListener("pointermove", onPointerMove);
+    document.addEventListener("pointerup", onPointerUp);
+    return () => {
+      document.removeEventListener("pointermove", onPointerMove);
+      document.removeEventListener("pointerup", onPointerUp);
+    };
+  }, []);
+
+  function handlePointerDown(event: React.PointerEvent<HTMLDivElement>, teamId: string) {
+    if (event.button !== 0) return;
+    if ((event.target as HTMLElement).closest("button")) return;
+    event.preventDefault();
+    draggingRef.current = teamId;
+    dropTargetRef.current = teamId;
+    setDraggingTeamId(teamId);
+    setDropTargetTeamId(teamId);
   }
 
   async function handleSaveSettings(e: React.FormEvent) {
@@ -180,7 +239,16 @@ export default function EditGroupClient({ group }: { group: TournamentGroup }) {
 
         <div className="space-y-1.5">
           {resultOrder.map((team, idx) => (
-            <div key={team.id} className="flex items-center gap-2 rounded-lg bg-zinc-700/50 px-3 py-2">
+            <div
+              key={team.id}
+              data-team-id={team.id}
+              onPointerDown={(event) => handlePointerDown(event, team.id)}
+              className={`flex items-center gap-2 rounded-lg bg-zinc-700/50 px-3 py-2 cursor-grab active:cursor-grabbing touch-none ${
+                draggingTeamId === team.id ? "ring-1 ring-zinc-500 opacity-80" : ""
+              } ${
+                dropTargetTeamId === team.id && draggingTeamId !== team.id ? "ring-1 ring-sky-500" : ""
+              }`}
+            >
               <span className="w-6 text-center text-sm font-bold text-zinc-400">{idx + 1}</span>
               <span className="flex-1 text-sm">{team.answerItem.name}</span>
               <div className="flex w-16 justify-end gap-1">
