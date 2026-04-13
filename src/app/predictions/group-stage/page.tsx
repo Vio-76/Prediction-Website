@@ -61,7 +61,7 @@ export default async function GroupStagePage() {
       <p className="mb-6 text-sm text-zinc-400">
         Predict the final standings for each group. Use the ▲ ▼ buttons to reorder teams — your ranking saves automatically.
       </p>
-      <GroupStagePredictionsView groups={groups} savedPredictions={savedPredictions} />
+      <GroupStagePredictionsView groups={groups} savedPredictions={savedPredictions} closed={isClosed ?? false} />
     </div>
   );
 }

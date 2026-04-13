@@ -11,8 +11,6 @@ type GroupTeam = {
 type TournamentGroup = {
   id: string;
   name: string;
-  deadline: string | Date;
-  isLocked: boolean;
   pointValue: number;
   teams: GroupTeam[];
 };
@@ -21,10 +19,6 @@ type SavedPrediction = {
   teamId: string;
   predictedPosition: number;
 };
-
-function isClosed(group: TournamentGroup): boolean {
-  return group.isLocked || new Date(group.deadline) < new Date();
-}
 
 function reorderByTeamIds(order: GroupTeam[], fromTeamId: string, toTeamId: string): GroupTeam[] {
   const fromIndex = order.findIndex((team) => team.id === fromTeamId);
@@ -43,11 +37,12 @@ function reorderByTeamIds(order: GroupTeam[], fromTeamId: string, toTeamId: stri
 function GroupCard({
   group,
   initialOrder,
+  closed,
 }: {
   group: TournamentGroup;
   initialOrder: GroupTeam[];
+  closed: boolean;
 }) {
-  const closed = isClosed(group);
   const hasResults = group.teams.length > 0 && group.teams.every((t) => t.finalPosition !== null);
 
   // Ordered list of teams representing the user's predicted ranking
@@ -269,9 +264,11 @@ function GroupCard({
 export default function GroupStagePredictionsView({
   groups,
   savedPredictions,
+  closed,
 }: {
   groups: TournamentGroup[];
   savedPredictions: Record<string, SavedPrediction[]>; // groupId → predictions
+  closed: boolean;
 }) {
   if (groups.length === 0) {
     return <p className="text-zinc-500">No groups set up yet.</p>;
@@ -296,7 +293,7 @@ export default function GroupStagePredictionsView({
         }
 
         return (
-          <GroupCard key={group.id} group={group} initialOrder={initialOrder} />
+          <GroupCard key={group.id} group={group} initialOrder={initialOrder} closed={closed} />
         );
       })}
     </div>

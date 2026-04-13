@@ -2,16 +2,23 @@ import { prisma } from "@/lib/prisma";
 import Link from "next/link";
 
 export default async function AdminGroupsPage() {
-  const groups = await prisma.tournamentGroup.findMany({
-    include: {
-      teams: {
-        include: { answerItem: { select: { name: true } } },
-        orderBy: { answerItem: { name: "asc" } },
+  const [groups, categorySettings] = await Promise.all([
+    prisma.tournamentGroup.findMany({
+      include: {
+        teams: {
+          include: { answerItem: { select: { name: true } } },
+          orderBy: { answerItem: { name: "asc" } },
+        },
+        _count: { select: { predictions: true } },
       },
-      _count: { select: { predictions: true } },
-    },
-    orderBy: { createdAt: "asc" },
-  });
+      orderBy: { createdAt: "asc" },
+    }),
+    prisma.categorySettings.findUnique({ where: { category: "GROUP_STAGE" } }),
+  ]);
+
+  const closed =
+    categorySettings?.isLocked ||
+    (categorySettings?.deadline != null && categorySettings.deadline < new Date());
 
   return (
     <div className="space-y-6">
@@ -31,7 +38,6 @@ export default async function AdminGroupsPage() {
 
       <div className="space-y-3">
         {groups.map((group) => {
-          const closed = group.isLocked || group.deadline < new Date();
           const hasResults = group.teams.every((t) => t.finalPosition !== null);
           return (
             <div
